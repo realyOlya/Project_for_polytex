@@ -1,5 +1,6 @@
 import pygame
 import json
+from pathlib import Path
 from core_game.scene import Scene
 from ui.button import Button
 from config import SCREEN_WIDTH, SCREEN_HEIGHT
@@ -12,8 +13,9 @@ class GameScene(Scene):
     def __init__(self, scene_manager, state_manager):
         super().__init__(scene_manager, state_manager)
 
-        # Загрузка items.json
-        with open("data/items.json", "r", encoding="utf-8") as f:
+        # Загрузка items.json с использованием pathlib
+        BASE_DIR = Path(__file__).resolve().parent.parent
+        with open(BASE_DIR / "data" / "items.json", "r", encoding="utf-8") as f:
             self.items = json.load(f)
 
         # Использование новых классов
@@ -159,112 +161,8 @@ class GameScene(Scene):
             self.show_end_screen()
 
     def check_answer(self, idx, text):
-        """ УДАЛИТЬ ВСЕ ELIF ОБРАБОТКА В GAME_LOGIC"""
+
         """Проверка ответа с использованием ActionValidator"""
-        if self.current_step == "4":
-            self.option_buttons[idx].status = "correct"
-            self.waiting_for_next = True
-            return
-
-
-
-        # Шаг 5: последовательность мытья рук
-        if self.current_step == "5":
-            correct_order = [0, 1, 2, 3, 4, 5, 6]
-            if idx == correct_order[len(self.sequence_selected)]:
-                self.option_buttons[idx].status = "used"
-                self.sequence_selected.append(idx)
-                if len(self.sequence_selected) == len(correct_order):
-                    for btn in self.option_buttons:
-                        btn.status = "correct"
-                    self.waiting_for_next = True
-            else:
-                self._show_error()
-                for btn in self.option_buttons:
-                    btn.status = "wrong"
-            return
-
-        # Шаг 6_1, 6_2, 6_3: выбор продуктов
-        if self.current_step == "6_1":
-            if self.validator.validate("6_1", text):
-                self.option_buttons[idx].status = "correct"
-                self.waiting_for_next = True
-            else:
-                self._show_error()
-                self.option_buttons[idx].status = "wrong"
-                for btn in self.option_buttons:
-                    if btn.text == "Кура":
-                        btn.status = "correct"
-            return
-
-        if self.current_step == "6_2":
-            correct_set = ["Картофель", "Морковь", "Репчатый лук", "Огурцы солёные"]
-            if text in correct_set and text not in self.multi_selected:
-                self.option_buttons[idx].status = "used"
-                self.multi_selected.append(text)
-                if set(self.multi_selected) == set(correct_set):
-                    for btn in self.option_buttons:
-                        if btn.text in correct_set:
-                            btn.status = "correct"
-                    self.waiting_for_next = True
-            elif text not in correct_set:
-                self._show_error()
-                self.option_buttons[idx].status = "wrong"
-            return
-
-        if self.current_step == "6_3":
-            if self.validator.validate("6_3", text):
-                self.option_buttons[idx].status = "correct"
-                self.waiting_for_next = True
-            else:
-                self._show_error()
-                self.option_buttons[idx].status = "wrong"
-                for btn in self.option_buttons:
-                    if btn.text == "Перловая крупа":
-                        btn.status = "correct"
-            return
-
-        if self.current_step == "7":
-            self.option_buttons[idx].status = "correct"
-            self.waiting_for_next = True
-            return
-
-        # Шаг 9, 11: множественный выбор инвентаря
-
-
-        # Шаг 15: последовательность закладки
-        if self.current_step == "15":
-            cooking_map = {"Положить в кастрюлю": 0, "Припустить в сковороде": 1}
-            correct_order = [0, 1, 0, 1, 0, 0]
-            value = cooking_map.get(text, 0)
-            if value == correct_order[len(self.sequence_selected)]:
-                self.option_buttons[idx].status = "used"
-                self.sequence_selected.append(value)
-                if len(self.sequence_selected) == len(correct_order):
-                    for btn in self.option_buttons:
-                        btn.status = "correct"
-                    self.waiting_for_next = True
-            else:
-                self._show_error()
-                for btn in self.option_buttons:
-                    btn.status = "wrong"
-            return
-
-        # Шаг 18: уборка
-        if self.current_step == "18":
-            correct_set = ["Инвентарь", "Посуда", "Оборудование"]
-            if text in correct_set and text not in self.multi_selected:
-                self.option_buttons[idx].status = "used"
-                self.multi_selected.append(text)
-                if set(self.multi_selected) == set(correct_set):
-                    for btn in self.option_buttons:
-                        if btn.text in correct_set:
-                            btn.status = "correct"
-                    self.waiting_for_next = True
-            elif text not in correct_set:
-                self._show_error()
-                self.option_buttons[idx].status = "wrong"
-            return
 
         # Обычный шаг (один правильный ответ) — используем валидатор
         if self.validator.validate(self.current_step, text):
@@ -274,10 +172,6 @@ class GameScene(Scene):
             self._show_error()
             self.option_buttons[idx].status = "wrong"
             # Показываем правильный ответ (если это строка)
-            if isinstance(self.current_correct, str):
-                for btn in self.option_buttons:
-                    if btn.text == self.current_correct:
-                        btn.status = "correct"
 
     def _show_error(self):
         self.is_error = True
@@ -312,8 +206,3 @@ class GameScene(Scene):
             self.next_button.draw(screen)
         elif self.is_error and self.retry_button:
             self.retry_button.draw(screen)
-
-    def show_end_screen(self):
-        self.option_buttons = []
-        self.current_question = f"🎉 ПОЗДРАВЛЯЕМ! 🎉\n\nВы успешно прошли обучение!\nВсего ошибок: {self.error_counter.count}"
-        self.waiting_for_next = False

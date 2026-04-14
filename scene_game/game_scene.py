@@ -35,6 +35,7 @@ class GameScene(Scene):
         self.click_zones = []
         self.question_button = None  # Добавили переменную для кнопки-вопроса
         # Добавили переменную для кнопки-вопроса
+        # Добавили переменную для кнопки-вопроса
         self.waiting_for_next = False
         self.is_error = False
 

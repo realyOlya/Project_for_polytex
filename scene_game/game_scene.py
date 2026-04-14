@@ -33,7 +33,7 @@ class GameScene(Scene):
         self.bg_image = None
         self.char_image = None
         self.click_zones = []
-        self.question_button = None  # Добавили переменную для кнопки-вопроса
+        self.question_button = None
 
         self.waiting_for_next = False
         self.is_error = False

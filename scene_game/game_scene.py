@@ -25,6 +25,10 @@ class GameScene(Scene):
         self.error_counter = ErrorCounter()
         self.confirmation = ConfirmationHandler()
 
+        self.correct_count = 0
+        self.total_items_to_collect = 0
+        self.checkmark_img = None
+
         self.steps_order = ["1", "2", "3", "4", "5", "6_1", "6_2", "6_3", "7", "8", "9", "10", "11", "12_1", "12_2",
                             "12_3", "12_4", "13", "14", "15", "16", "17", "18"]
         self.step_index = 0
@@ -43,6 +47,14 @@ class GameScene(Scene):
 
         self.load_step(self.current_step)
 
+        try:
+            check_path = self.DATA_DIR / "checkmark.png"   # имя файла галочки
+            self.checkmark_img = pygame.image.load(str(check_path))
+            self.checkmark_img = pygame.transform.scale(self.checkmark_img, (40, 40))
+        except Exception as e:
+            print(f"Ошибка загрузки: {e}")
+            self.checkmark_img = None
+
     def load_step(self, step_id):
         self.current_step = step_id
         self.waiting_for_next = False
@@ -57,6 +69,9 @@ class GameScene(Scene):
             return
 
         self.current_question = step_data.get("question", "")
+
+        self.correct_count = 0
+        self.total_items_to_collect = 0
 
         # --- НОВАЯ ЛОГИКА: Создание узкой кнопки вопроса ---
         text_surf = self.font_medium.render(self.current_question, True, (0, 0, 0))
@@ -78,13 +93,20 @@ class GameScene(Scene):
                     r = item["rect"]
                     zone = Button(r[0], r[1], r[2], r[3], "", None)
                     zone.action_id = item["id"]
+                    zone.is_correct = False          # флаг, отмечена ли зона галочкой
                     self.click_zones.append(zone)
+                self.total_items_to_collect = len(self.click_zones)
             except Exception as e:
                 print(f"Ошибка загрузки: {e}")
 
         options = self._get_options_for_step(step_id)
         self._create_option_buttons(options)
         self._create_control_buttons()
+
+        if self.current_step == "4":
+            self.next_button = Button((SCREEN_WIDTH - 200) // 2, 620, 200, 50, "ПРОВЕРИТЬ", None)
+        else:
+            self.next_button = Button((SCREEN_WIDTH - 200) // 2, 620, 200, 50, "ДАЛЕЕ", None)
 
     def _get_options_for_step(self, step_id):
         if step_id in self.image_data and self.image_data[step_id].get("items_to_click"):
@@ -116,10 +138,14 @@ class GameScene(Scene):
         if self.is_error:
             if self.retry_button.handle_event(event): self.load_step(self.current_step)
             return
+        if self.total_items_to_collect > 0 and not self.waiting_for_next and not self.is_error:
+            if self.next_button.handle_event(event):
+                self.check_completion()
+                return
 
         for zone in self.click_zones:
             if zone.handle_event(event):
-                self.check_answer(None, zone.action_id)
+                self.check_zone_click(zone)
                 return
 
         for i, btn in enumerate(self.option_buttons):
@@ -127,6 +153,14 @@ class GameScene(Scene):
                 self.check_answer(i, btn.text)
                 break
 
+    def check_completion(self):
+        if self.correct_count == self.total_items_to_collect:
+            self.waiting_for_next = True
+            self.next_button = Button((SCREEN_WIDTH - 200) // 2, 620, 200, 50, "ДАЛЕЕ", None)
+        else:
+            self.is_error = True
+            self.error_counter.add_error()
+    
     def next_step(self):
         self.step_index += 1
         if self.step_index < len(self.steps_order):
@@ -142,6 +176,13 @@ class GameScene(Scene):
             self.is_error = True
             self.error_counter.add_error()
             if idx is not None: self.option_buttons[idx].status = "wrong"
+
+    def check_zone_click(self, zone):
+        if zone.is_correct:
+            return  # уже отмечено
+        if self.validator.validate(self.current_step, zone.action_id):
+            zone.is_correct = True
+            self.correct_count += 1
 
     def update(self, dt):
         pass
@@ -182,3 +223,13 @@ class GameScene(Scene):
             self.next_button.draw(screen)
         elif self.is_error:
             self.retry_button.draw(screen)
+        elif self.total_items_to_collect > 0:
+            self.next_button.draw(screen)
+
+        # Рисуем галочки на отмеченных зонах
+        if self.checkmark_img:
+            for zone in self.click_zones:
+                if zone.is_correct:
+                    x = zone.rect.x + (zone.rect.width - self.checkmark_img.get_width()) // 2
+                    y = zone.rect.y + (zone.rect.height - self.checkmark_img.get_height()) // 2
+                    screen.blit(self.checkmark_img, (x, y))
